@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import gql from "graphql-tag";
-import { useQuery, useMutation } from "react-apollo-hooks";
+import { useQuery, useMutation, useSubscription } from "react-apollo-hooks";
 import withSuspense from "./withSuspense";
 
 const GET_MESSAGES = gql`
@@ -28,15 +28,39 @@ const SEND_MESSAGE = gql`
   }
 `;
 
+const NEW_MESSAGE = gql`
+  subscription newMessage {
+    newMessage {
+      id
+      text
+    }
+  }
+`;
+
 function Chat() {
   const [message, setMessage] = useState("");
   const [sendMessageMutation] = useMutation(SEND_MESSAGE, {
     variables: {
       text: message,
     },
-    refetchQueries: () => [{ query: GET_MESSAGES }],
   });
-  const { data, error } = useQuery(GET_MESSAGES, { suspend: true });
+  const {
+    data: { messages: oldMessages },
+    error,
+  } = useQuery(GET_MESSAGES, {
+    suspend: true,
+  });
+  const { data } = useSubscription(NEW_MESSAGE);
+  const [messages, setMessages] = useState(oldMessages || []);
+  const handleNewMessage = () => {
+    if (data !== undefined) {
+      const { newMessage } = data;
+      setMessages((previous) => [...previous, newMessage]);
+    }
+  };
+  useEffect(() => {
+    handleNewMessage();
+  }, [data]);
   const onChangeText = (text) => setMessage(text);
   const onSubmit = async () => {
     if (message === "") {
@@ -45,11 +69,10 @@ function Chat() {
     try {
       await sendMessageMutation();
       setMessage("");
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      console.log(e);
     }
   };
-  console.log(data);
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
       <ScrollView
@@ -60,7 +83,7 @@ function Chat() {
           alignItems: "center",
         }}
       >
-        {data.messages.map((m) => (
+        {messages.map((m) => (
           <View key={m.id} style={{ marginBottom: 10 }}>
             <Text>{m.text}</Text>
           </View>
@@ -70,11 +93,13 @@ function Chat() {
           style={{
             marginTop: 50,
             width: "90%",
+            borderRadius: 10,
             paddingVertical: 15,
             paddingHorizontal: 10,
             backgroundColor: "#f2f2f2",
           }}
           returnKeyType="send"
+          value={message}
           onChangeText={onChangeText}
           onSubmitEditing={onSubmit}
         />
