@@ -6,8 +6,8 @@ import { ApolloLink, split } from "apollo-link";
 import { WebSocketLink } from "apollo-link-ws";
 import { getMainDefinition } from "apollo-utilities";
 
-const TEST_URL = "192.168.99.1:4000"; // android Emulator 사용시
-// const TEST_URL = "localhost:4000";
+// const TEST_URL = "192.168.99.1:4000"; // android Emulator 사용시
+const TEST_URL = "localhost:4000";
 
 const httpLink = new HttpLink({
   uri: `http://${TEST_URL}`,
